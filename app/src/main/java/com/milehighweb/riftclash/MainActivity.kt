@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.milehighweb.riftclash.ui.screens.CollectionScreen
+import com.milehighweb.riftclash.ui.screens.CrashReportScreen
 import com.milehighweb.riftclash.ui.screens.GameScreen
 import com.milehighweb.riftclash.ui.screens.MainMenuScreen
 import com.milehighweb.riftclash.ui.screens.RulesScreen
@@ -23,27 +24,36 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val lastCrash = CrashReporter.consumeLastCrash(application)
         setContent {
             RiftClashTheme {
                 var screen by remember { mutableStateOf(Screen.MENU) }
+                var crashReport by remember { mutableStateOf(lastCrash) }
                 val snapshot by viewModel.snapshot.collectAsState()
 
-                when (screen) {
-                    Screen.MENU -> MainMenuScreen(
-                        onStartGame = {
-                            viewModel.startNewGame()
-                            screen = Screen.GAME
-                        },
-                        onShowRules = { screen = Screen.RULES },
-                        onShowCollection = { screen = Screen.COLLECTION },
+                val currentCrashReport = crashReport
+                when {
+                    currentCrashReport != null -> CrashReportScreen(
+                        report = currentCrashReport,
+                        onDismiss = { crashReport = null },
                     )
-                    Screen.GAME -> GameScreen(
-                        viewModel = viewModel,
-                        snapshot = snapshot,
-                        onExitToMenu = { screen = Screen.MENU },
-                    )
-                    Screen.RULES -> RulesScreen(onBack = { screen = Screen.MENU })
-                    Screen.COLLECTION -> CollectionScreen(onBack = { screen = Screen.MENU })
+                    else -> when (screen) {
+                        Screen.MENU -> MainMenuScreen(
+                            onStartGame = {
+                                viewModel.startNewGame()
+                                screen = Screen.GAME
+                            },
+                            onShowRules = { screen = Screen.RULES },
+                            onShowCollection = { screen = Screen.COLLECTION },
+                        )
+                        Screen.GAME -> GameScreen(
+                            viewModel = viewModel,
+                            snapshot = snapshot,
+                            onExitToMenu = { screen = Screen.MENU },
+                        )
+                        Screen.RULES -> RulesScreen(onBack = { screen = Screen.MENU })
+                        Screen.COLLECTION -> CollectionScreen(onBack = { screen = Screen.MENU })
+                    }
                 }
             }
         }
