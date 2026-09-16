@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.SportsMma
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -31,6 +33,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +52,7 @@ import com.milehighweb.riftclash.game.CreatureInstance
 import com.milehighweb.riftclash.game.GameState
 import com.milehighweb.riftclash.game.PlayerState
 import com.milehighweb.riftclash.game.Side
+import com.milehighweb.riftclash.game.TurnPhase
 import com.milehighweb.riftclash.ui.theme.EmberOrange
 import com.milehighweb.riftclash.ui.theme.HealthRed
 import com.milehighweb.riftclash.ui.theme.ManaBlue
@@ -63,6 +70,7 @@ import com.milehighweb.riftclash.ui.theme.boardBackgroundBrush
 fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: () -> Unit) {
     val game = snapshot.game
     val isPlayerTurn = game.activeSide == Side.PLAYER && !game.isGameOver
+    val isCombatPhase = game.phase == TurnPhase.COMBAT
 
     // GameState's lists are mutated in place by the engine (a new GameSnapshot only wraps
     // the same live object with a bumped revision), so a LazyRow keyed off them directly can
@@ -73,9 +81,22 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
     val playerBoard = game.player.board.toList()
     val playerHand = game.player.hand.toList()
 
-    Box(modifier = Modifier.fillMaxSize().background(boardBackgroundBrush())) {
+    // A long press on any card, in hand or on the board, opens its full details without
+    // disturbing whatever is currently selected for playing or attacking.
+    var inspectedCard by remember { mutableStateOf<InspectedCard?>(null) }
+
+    // safeDrawingPadding keeps every tappable element clear of the status bar, the display
+    // cutout, and -- since this app is locked to landscape -- a 3-button or gesture nav bar
+    // that a phone can render along either long edge of the screen.
+    Box(modifier = Modifier.fillMaxSize().background(boardBackgroundBrush()).safeDrawingPadding()) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp)) {
-            TopInfoBar(state = game.ai, turnNumber = game.turnNumber, onExitToMenu = onExitToMenu, onHeroTapped = { viewModel.onEnemyHeroTapped() })
+            TopInfoBar(
+                state = game.ai,
+                turnNumber = game.turnNumber,
+                phase = game.phase,
+                onExitToMenu = onExitToMenu,
+                onHeroTapped = { viewModel.onEnemyHeroTapped() },
+            )
 
             BoardRow(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -83,6 +104,7 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
                 selectedId = null,
                 selectableIds = emptySet(),
                 onTapped = { id -> viewModel.onCreatureTapped(id, Side.AI) },
+                onLongPressed = { creature -> inspectedCard = InspectedCard.fromCreature(creature) },
             )
 
             StatusBanner(
@@ -95,11 +117,18 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 creatures = playerBoard,
                 selectedId = viewModel.selectedAttackerId,
-                selectableIds = playerBoard.filter { it.canAttack }.map { it.instanceId }.toSet(),
+                selectableIds = if (isCombatPhase) playerBoard.filter { it.canAttack }.map { it.instanceId }.toSet() else emptySet(),
                 onTapped = { id -> viewModel.onCreatureTapped(id, Side.PLAYER) },
+                onLongPressed = { creature -> inspectedCard = InspectedCard.fromCreature(creature) },
             )
 
-            BottomBar(viewModel = viewModel, game = game, hand = playerHand, isPlayerTurn = isPlayerTurn)
+            BottomBar(
+                viewModel = viewModel,
+                game = game,
+                hand = playerHand,
+                isPlayerTurn = isPlayerTurn,
+                onCardLongPressed = { card -> inspectedCard = InspectedCard.fromCard(card) },
+            )
         }
 
         if (game.isGameOver) {
@@ -109,6 +138,10 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
                 onExitToMenu = onExitToMenu,
             )
         }
+
+        inspectedCard?.let { card ->
+            CardDetailDialog(card = card, onDismiss = { inspectedCard = null })
+        }
     }
 }
 
@@ -116,6 +149,7 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
 private fun TopInfoBar(
     state: PlayerState,
     turnNumber: Int,
+    phase: TurnPhase,
     onExitToMenu: () -> Unit,
     onHeroTapped: () -> Unit,
 ) {
@@ -136,13 +170,19 @@ private fun TopInfoBar(
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = "TURN $turnNumber",
+            text = "TURN $turnNumber · ${phase.displayName}",
             color = ParchmentWhite.copy(alpha = 0.5f),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
         )
     }
 }
+
+private val TurnPhase.displayName: String
+    get() = when (this) {
+        TurnPhase.MAIN -> "MAIN PHASE"
+        TurnPhase.COMBAT -> "COMBAT PHASE"
+    }
 
 @Composable
 private fun StatusBanner(message: String?, isPlayerTurn: Boolean, modifier: Modifier = Modifier) {
@@ -203,6 +243,7 @@ private fun BoardRow(
     selectedId: String?,
     selectableIds: Set<String>,
     onTapped: (String) -> Unit,
+    onLongPressed: (CreatureInstance) -> Unit,
 ) {
     Row(
         modifier = modifier
@@ -220,6 +261,7 @@ private fun BoardRow(
                     isSelected = creature.instanceId == selectedId,
                     isSelectableAttacker = creature.instanceId in selectableIds,
                     onClick = { onTapped(creature.instanceId) },
+                    onLongClick = { onLongPressed(creature) },
                     modifier = Modifier.fillMaxHeight().width(64.dp),
                 )
             }
@@ -228,7 +270,13 @@ private fun BoardRow(
 }
 
 @Composable
-private fun BottomBar(viewModel: GameViewModel, game: GameState, hand: List<CardInstance>, isPlayerTurn: Boolean) {
+private fun BottomBar(
+    viewModel: GameViewModel,
+    game: GameState,
+    hand: List<CardInstance>,
+    isPlayerTurn: Boolean,
+    onCardLongPressed: (CardInstance) -> Unit,
+) {
     Row(modifier = Modifier.fillMaxWidth().height(112.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.width(88.dp), horizontalAlignment = Alignment.Start) {
             Text(text = "You", color = ParchmentWhite.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -246,10 +294,11 @@ private fun BottomBar(viewModel: GameViewModel, game: GameState, hand: List<Card
             game = game,
             hand = hand,
             isPlayerTurn = isPlayerTurn,
+            onCardLongPressed = onCardLongPressed,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         Spacer(modifier = Modifier.width(4.dp))
-        EndTurnControls(viewModel = viewModel, isPlayerTurn = isPlayerTurn)
+        EndTurnControls(viewModel = viewModel, isPlayerTurn = isPlayerTurn, phase = game.phase)
     }
 }
 
@@ -259,6 +308,7 @@ private fun HandRow(
     game: GameState,
     hand: List<CardInstance>,
     isPlayerTurn: Boolean,
+    onCardLongPressed: (CardInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
@@ -268,11 +318,13 @@ private fun HandRow(
     ) {
         items(hand, key = { it.instanceId }) { card ->
             val affordable = card.template.cost <= game.player.currentMana
+            val isMainPhase = game.phase == TurnPhase.MAIN
             HandCardView(
                 card = card,
                 isSelected = card.instanceId == viewModel.selectedHandCardId,
-                isPlayable = isPlayerTurn && affordable,
+                isPlayable = isPlayerTurn && isMainPhase && affordable,
                 onClick = { viewModel.onHandCardTapped(card.instanceId) },
+                onLongClick = { onCardLongPressed(card) },
                 modifier = Modifier.fillMaxHeight().width(78.dp),
             )
         }
@@ -280,28 +332,58 @@ private fun HandRow(
 }
 
 @Composable
-private fun EndTurnControls(viewModel: GameViewModel, isPlayerTurn: Boolean) {
+private fun EndTurnControls(viewModel: GameViewModel, isPlayerTurn: Boolean, phase: TurnPhase) {
     val selectedCardId = viewModel.selectedHandCardId
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Button(
-            onClick = { viewModel.playSelectedCard() },
-            enabled = isPlayerTurn && selectedCardId != null,
-            colors = ButtonDefaults.buttonColors(containerColor = EmberOrange),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
-            Text(text = "Play", fontSize = 11.sp)
+    // Up to three stacked buttons need to fit in the same fixed-height bar as the hand row,
+    // so each one is a fixed 30dp tall with tight spacing instead of Material3's default
+    // (roomier) button sizing.
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        if (phase == TurnPhase.MAIN) {
+            CompactActionButton(
+                text = "Combat",
+                icon = Icons.Filled.SportsMma,
+                onClick = { viewModel.declareCombat() },
+                enabled = isPlayerTurn,
+                containerColor = HealthRed,
+            )
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Button(
+        if (phase == TurnPhase.MAIN) {
+            CompactActionButton(
+                text = "Play",
+                icon = Icons.Filled.PlayArrow,
+                onClick = { viewModel.playSelectedCard() },
+                enabled = isPlayerTurn && selectedCardId != null,
+                containerColor = EmberOrange,
+            )
+        }
+        CompactActionButton(
+            text = "End Turn",
+            icon = Icons.Filled.SkipNext,
             onClick = { viewModel.endTurn() },
             enabled = isPlayerTurn,
-            colors = ButtonDefaults.buttonColors(containerColor = RiftPurpleLight),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Icon(Icons.Filled.SkipNext, contentDescription = null, modifier = Modifier.size(14.dp))
-            Text(text = "End Turn", fontSize = 11.sp)
-        }
+            containerColor = RiftPurpleLight,
+        )
+    }
+}
+
+@Composable
+private fun CompactActionButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    containerColor: Color,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.height(30.dp).width(100.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(13.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = text, fontSize = 11.sp)
     }
 }
 

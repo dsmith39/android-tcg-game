@@ -3,6 +3,7 @@ package com.milehighweb.riftclash
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,6 +25,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Draw behind the system bars consistently across API levels (Android 15+ enforces this
+        // regardless), so every screen's own safeDrawingPadding() is what actually keeps content
+        // clear of the status bar, a display cutout, or a nav bar rendered along a landscape edge.
+        enableEdgeToEdge()
         val lastCrash = CrashReporter.consumeLastCrash(application)
         setContent {
             RiftClashTheme {

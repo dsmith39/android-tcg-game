@@ -12,6 +12,7 @@ import com.milehighweb.riftclash.game.CardType
 import com.milehighweb.riftclash.game.GameEngine
 import com.milehighweb.riftclash.game.GameState
 import com.milehighweb.riftclash.game.Side
+import com.milehighweb.riftclash.game.TurnPhase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +48,10 @@ class GameViewModel : ViewModel() {
 
     fun onHandCardTapped(cardInstanceId: String) {
         if (game.activeSide != Side.PLAYER || game.isGameOver) return
+        if (game.phase != TurnPhase.MAIN) {
+            statusMessage = "Cards can only be played during the Main Phase."
+            return
+        }
         selectedAttackerId = null
         if (selectedHandCardId == cardInstanceId) {
             selectedHandCardId = null
@@ -122,6 +127,10 @@ class GameViewModel : ViewModel() {
     }
 
     private fun selectAttacker(creatureInstanceId: String) {
+        if (game.phase != TurnPhase.COMBAT) {
+            statusMessage = "Declare the Combat Phase before attacking."
+            return
+        }
         val creature = game.player.board.find { it.instanceId == creatureInstanceId } ?: return
         if (!creature.canAttack) {
             statusMessage = "${creature.template.name} can't attack right now."
@@ -130,6 +139,13 @@ class GameViewModel : ViewModel() {
         }
         selectedAttackerId = if (selectedAttackerId == creatureInstanceId) null else creatureInstanceId
         statusMessage = if (selectedAttackerId != null) "Tap an enemy creature or hero to attack." else null
+    }
+
+    /** Moves from the Main Phase into the Combat Phase, so creatures can start attacking. */
+    fun declareCombat() {
+        if (game.activeSide != Side.PLAYER || game.isGameOver) return
+        selectedHandCardId = null
+        applyResult { GameEngine.declareCombat(game, Side.PLAYER) }
     }
 
     private fun runAiTurnIfNeeded() {
