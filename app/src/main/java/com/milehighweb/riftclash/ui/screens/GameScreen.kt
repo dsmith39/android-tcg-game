@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.milehighweb.riftclash.GameSnapshot
 import com.milehighweb.riftclash.GameViewModel
+import com.milehighweb.riftclash.game.CardInstance
 import com.milehighweb.riftclash.game.CreatureInstance
 import com.milehighweb.riftclash.game.GameState
 import com.milehighweb.riftclash.game.PlayerState
@@ -63,13 +64,22 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
     val game = snapshot.game
     val isPlayerTurn = game.activeSide == Side.PLAYER && !game.isGameOver
 
+    // GameState's lists are mutated in place by the engine (a new GameSnapshot only wraps
+    // the same live object with a bumped revision), so a LazyRow keyed off them directly can
+    // outlive the frame it read: the engine shrinks the list mid-recomposition -- e.g. from an
+    // AI-turn coroutine -- and Compose indexes into it again for a now out-of-bounds position.
+    // Snapshotting to immutable copies here gives every composable this frame the same, fixed-size list.
+    val aiBoard = game.ai.board.toList()
+    val playerBoard = game.player.board.toList()
+    val playerHand = game.player.hand.toList()
+
     Box(modifier = Modifier.fillMaxSize().background(boardBackgroundBrush())) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp)) {
             TopInfoBar(state = game.ai, turnNumber = game.turnNumber, onExitToMenu = onExitToMenu, onHeroTapped = { viewModel.onEnemyHeroTapped() })
 
             BoardRow(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                creatures = game.ai.board,
+                creatures = aiBoard,
                 selectedId = null,
                 selectableIds = emptySet(),
                 onTapped = { id -> viewModel.onCreatureTapped(id, Side.AI) },
@@ -83,13 +93,13 @@ fun GameScreen(viewModel: GameViewModel, snapshot: GameSnapshot, onExitToMenu: (
 
             BoardRow(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                creatures = game.player.board,
+                creatures = playerBoard,
                 selectedId = viewModel.selectedAttackerId,
-                selectableIds = game.player.board.filter { it.canAttack }.map { it.instanceId }.toSet(),
+                selectableIds = playerBoard.filter { it.canAttack }.map { it.instanceId }.toSet(),
                 onTapped = { id -> viewModel.onCreatureTapped(id, Side.PLAYER) },
             )
 
-            BottomBar(viewModel = viewModel, game = game, isPlayerTurn = isPlayerTurn)
+            BottomBar(viewModel = viewModel, game = game, hand = playerHand, isPlayerTurn = isPlayerTurn)
         }
 
         if (game.isGameOver) {
@@ -218,7 +228,7 @@ private fun BoardRow(
 }
 
 @Composable
-private fun BottomBar(viewModel: GameViewModel, game: GameState, isPlayerTurn: Boolean) {
+private fun BottomBar(viewModel: GameViewModel, game: GameState, hand: List<CardInstance>, isPlayerTurn: Boolean) {
     Row(modifier = Modifier.fillMaxWidth().height(112.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.width(88.dp), horizontalAlignment = Alignment.Start) {
             Text(text = "You", color = ParchmentWhite.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -234,6 +244,7 @@ private fun BottomBar(viewModel: GameViewModel, game: GameState, isPlayerTurn: B
         HandRow(
             viewModel = viewModel,
             game = game,
+            hand = hand,
             isPlayerTurn = isPlayerTurn,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
@@ -246,6 +257,7 @@ private fun BottomBar(viewModel: GameViewModel, game: GameState, isPlayerTurn: B
 private fun HandRow(
     viewModel: GameViewModel,
     game: GameState,
+    hand: List<CardInstance>,
     isPlayerTurn: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -254,7 +266,7 @@ private fun HandRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        items(game.player.hand, key = { it.instanceId }) { card ->
+        items(hand, key = { it.instanceId }) { card ->
             val affordable = card.template.cost <= game.player.currentMana
             HandCardView(
                 card = card,
