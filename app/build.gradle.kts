@@ -36,6 +36,20 @@ android {
     }
 }
 
+// GameState, PlayerState and CreatureInstance (in :game) are mutated in place by the
+// engine and are compiled outside the Compose plugin, so the compiler can't prove their
+// fields are immutable -- it correctly infers them as unstable. Compose's default "strong
+// skipping" optimization skips recomposing a composable when an unstable argument's
+// *reference* is unchanged, but the engine never replaces these objects, only mutates
+// their fields (hero health, creature attack/health, mana) in place. That made stat
+// displays (hero health gem, creature attack/health gems) silently go stale after combat
+// -- e.g. attacking the enemy hero updated the real game state but the health gem never
+// re-rendered. Disabling strong skipping restores the classic rule (unstable argument =>
+// never skip => always recompose), which reads these mutated fields fresh every time.
+composeCompiler {
+    featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.StrongSkipping.disabled())
+}
+
 dependencies {
     implementation(project(":game"))
 
@@ -51,4 +65,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
