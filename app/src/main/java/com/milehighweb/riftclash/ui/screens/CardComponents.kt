@@ -1,11 +1,14 @@
 package com.milehighweb.riftclash.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -31,9 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.milehighweb.riftclash.game.CardInstance
+import com.milehighweb.riftclash.game.CardTemplate
 import com.milehighweb.riftclash.game.CardType
 import com.milehighweb.riftclash.game.CreatureInstance
+import com.milehighweb.riftclash.game.Keyword
 import com.milehighweb.riftclash.ui.components.CardArt
 import com.milehighweb.riftclash.ui.theme.CardTitleStyle
 import com.milehighweb.riftclash.ui.theme.EmberOrange
@@ -46,12 +56,36 @@ import com.milehighweb.riftclash.ui.theme.RiftPurpleLight
 import com.milehighweb.riftclash.ui.theme.SpellVioletDeep
 import com.milehighweb.riftclash.ui.theme.TauntGold
 
+/**
+ * A card's full details, snapshotted out of whatever it came from (a hand card or a board
+ * creature) so the detail dialog can show live attack/health for creatures that have been
+ * buffed or damaged, while still working for cards that only exist as a [CardTemplate].
+ */
+data class InspectedCard(
+    val template: CardTemplate,
+    val currentAttack: Int? = null,
+    val currentHealth: Int? = null,
+    val maxHealth: Int? = null,
+) {
+    companion object {
+        fun fromCard(card: CardInstance) = InspectedCard(template = card.template)
+        fun fromCreature(creature: CreatureInstance) = InspectedCard(
+            template = creature.template,
+            currentAttack = creature.currentAttack,
+            currentHealth = creature.currentHealth,
+            maxHealth = creature.maxHealth,
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HandCardView(
     card: CardInstance,
     isSelected: Boolean,
     isPlayable: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier.width(112.dp).height(162.dp),
 ) {
     val template = card.template
@@ -59,7 +93,12 @@ fun HandCardView(
 
     Box(modifier = modifier) {
         Card(
-            modifier = Modifier.fillMaxSize().clickable(enabled = isPlayable) { onClick() },
+            // Long-press works even on a dimmed, unaffordable card -- inspecting a card
+            // shouldn't require being able to play it right now.
+            modifier = Modifier.fillMaxSize().combinedClickable(
+                onClick = { if (isPlayable) onClick() },
+                onLongClick = onLongClick,
+            ),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = RiftPurpleLight),
             border = BorderStroke(if (isSelected) 3.dp else 2.dp, if (isSelected) EmberOrange else frameColor),
@@ -125,12 +164,14 @@ fun HandCardView(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BoardCreatureView(
     creature: CreatureInstance,
     isSelected: Boolean,
     isSelectableAttacker: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier.width(92.dp).height(122.dp),
 ) {
     val borderColor = when {
@@ -142,7 +183,7 @@ fun BoardCreatureView(
 
     Box(modifier = modifier) {
         Card(
-            modifier = Modifier.fillMaxSize().clickable { onClick() },
+            modifier = Modifier.fillMaxSize().combinedClickable(onClick = onClick, onLongClick = onLongClick),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = RiftPurpleLight),
             border = BorderStroke(if (isSelected) 3.dp else 2.dp, borderColor),
@@ -235,5 +276,110 @@ fun Gem(
             maxLines = 1,
             softWrap = false,
         )
+    }
+}
+
+/**
+ * A full-size, un-clamped view of a single card, opened with a long press from the hand or
+ * the board. Hand and board cards both truncate their name/description to fit their small
+ * footprint, so this is the only place a player can read a long card's full text mid-match.
+ */
+@Composable
+fun CardDetailDialog(card: InspectedCard, onDismiss: () -> Unit) {
+    val template = card.template
+    val frameColor = if (template.type == CardType.CREATURE) EmberOrangeDeep else SpellVioletDeep
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.width(280.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = RiftPurpleLight),
+            border = BorderStroke(2.dp, frameColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().height(130.dp).clip(RoundedCornerShape(12.dp))) {
+                    CardArt(template = template, modifier = Modifier.fillMaxSize(), iconSize = 44.dp)
+                    Gem(
+                        value = template.cost,
+                        colors = listOf(ManaBlue, ManaBlueDeep),
+                        modifier = Modifier.align(Alignment.TopStart).padding(4.dp),
+                        size = 30.dp,
+                    )
+                    if (template.type == CardType.CREATURE) {
+                        Gem(
+                            value = card.currentAttack ?: template.attack,
+                            colors = listOf(EmberOrange, EmberOrangeDeep),
+                            modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
+                            size = 30.dp,
+                        )
+                        Gem(
+                            value = card.currentHealth ?: template.health,
+                            colors = listOf(HealthRed, Color(0xFF8F241D)),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                            size = 30.dp,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = template.name,
+                    style = CardTitleStyle.copy(fontSize = 18.sp),
+                    color = ParchmentWhite,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Cost ${template.cost} · ${template.type.name.lowercase().replaceFirstChar(Char::uppercase)}",
+                    color = ParchmentWhite.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (template.keywords.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    ) {
+                        template.keywords.forEach { keyword -> KeywordChip(keyword) }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = template.description,
+                    color = ParchmentWhite.copy(alpha = 0.9f),
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = frameColor),
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeywordChip(keyword: Keyword) {
+    val (label, icon) = when (keyword) {
+        Keyword.TAUNT -> "Taunt" to Icons.Filled.Shield
+        Keyword.CHARGE -> "Charge" to Icons.Filled.Bolt
+    }
+    Row(
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(TauntGold.copy(alpha = 0.25f)).padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = TauntGold, modifier = Modifier.size(12.dp))
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(text = label, color = TauntGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }

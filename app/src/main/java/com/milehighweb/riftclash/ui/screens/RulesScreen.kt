@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,12 @@ private val RULE_SECTIONS = listOf(
         "If your opponent controls any Taunt creatures, you must attack one of them before you can attack anything else on their side.",
     ),
     RuleSection(
+        "Turn Phases",
+        "Each of your turns has a Main Phase and a Combat Phase. Play creatures and spells during the Main Phase, " +
+            "then tap Combat to move into the Combat Phase, where your ready creatures can attack. " +
+            "You can't play more cards once you've declared combat, so plan your turn before you commit.",
+    ),
+    RuleSection(
         "Combat",
         "Attacking a creature trades damage both ways -- your attacker takes damage back equal to the defender's attack. " +
             "Attacking the hero deals damage with no return hit.",
@@ -64,14 +71,15 @@ private val RULE_SECTIONS = listOf(
     RuleSection(
         "Controls",
         "Tap a card to select it, then tap Play (for creatures, or spells that don't need a target) or tap a target on the " +
-            "board directly (for targeted spells). Tap a ready creature to select it as an attacker, then tap an enemy " +
-            "creature or hero to attack.",
+            "board directly (for targeted spells). Once you've declared combat, tap a ready creature to select it as an " +
+            "attacker, then tap an enemy creature or hero to attack. Long-press any card, in your hand or on the board, " +
+            "to see its full details.",
     ),
 )
 
 @Composable
 fun RulesScreen(onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().background(boardBackgroundBrush())) {
+    Column(modifier = Modifier.fillMaxSize().background(boardBackgroundBrush()).safeDrawingPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,

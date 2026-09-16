@@ -10,6 +10,7 @@ object AiController {
     fun takeTurn(state: GameState) {
         check(state.activeSide == Side.AI) { "It is not the AI's turn." }
         playCards(state)
+        if (!state.isGameOver) GameEngine.declareCombat(state, Side.AI)
         performAttacks(state)
         GameEngine.endTurn(state)
     }

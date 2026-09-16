@@ -42,12 +42,23 @@ object GameEngine {
     fun startTurn(state: GameState) {
         if (state.isGameOver) return
         val side = state.activeSide
+        state.phase = TurnPhase.MAIN
         val ps = state.stateOf(side)
         ps.maxMana = minOf(MAX_MANA, ps.maxMana + 1)
         ps.currentMana = ps.maxMana
         ps.board.forEach { it.readyForNewTurn() }
         drawCard(state, side)
         state.addLog("$side begins turn ${state.turnNumber} with ${ps.maxMana} mana.")
+    }
+
+    /** Moves the active side from the Main Phase into the Combat Phase, so its creatures can attack. */
+    fun declareCombat(state: GameState, side: Side): ActionResult {
+        if (state.isGameOver) return ActionResult.Failure("Game is over.")
+        if (state.activeSide != side) return ActionResult.Failure("Not your turn.")
+        if (state.phase != TurnPhase.MAIN) return ActionResult.Failure("Already in the Combat Phase.")
+        state.phase = TurnPhase.COMBAT
+        state.addLog("$side moves to the Combat Phase.")
+        return ActionResult.Success
     }
 
     fun drawCard(state: GameState, side: Side) {
@@ -71,6 +82,7 @@ object GameEngine {
     fun playCard(state: GameState, side: Side, cardInstanceId: String, targetInstanceId: String? = null): ActionResult {
         if (state.isGameOver) return ActionResult.Failure("Game is over.")
         if (state.activeSide != side) return ActionResult.Failure("Not your turn.")
+        if (state.phase != TurnPhase.MAIN) return ActionResult.Failure("Cards can only be played during the Main Phase.")
 
         val ps = state.stateOf(side)
         val cardInstance = ps.hand.find { it.instanceId == cardInstanceId }
@@ -105,6 +117,7 @@ object GameEngine {
     fun attack(state: GameState, side: Side, attackerInstanceId: String, targetInstanceId: String? = null): ActionResult {
         if (state.isGameOver) return ActionResult.Failure("Game is over.")
         if (state.activeSide != side) return ActionResult.Failure("Not your turn.")
+        if (state.phase != TurnPhase.COMBAT) return ActionResult.Failure("Declare the Combat Phase before attacking.")
 
         val attackerOwner = state.stateOf(side)
         val attacker = attackerOwner.board.find { it.instanceId == attackerInstanceId }

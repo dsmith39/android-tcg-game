@@ -71,9 +71,45 @@ class GameEngineTest {
         val attacker = state.player.board.first()
         assertTrue(attacker.canAttack)
 
+        GameEngine.declareCombat(state, Side.PLAYER)
         val result = GameEngine.attack(state, Side.PLAYER, attacker.instanceId)
         assertTrue(result is ActionResult.Success)
         assertEquals(MAX_HERO_HEALTH - 2, state.ai.heroHealth)
+    }
+
+    @Test
+    fun `cards cannot be played after combat is declared`() {
+        val state = fixedState(playerHand = listOf("stone_golem"))
+        state.player.currentMana = 5
+        GameEngine.declareCombat(state, Side.PLAYER)
+
+        val result = GameEngine.playCard(state, Side.PLAYER, state.player.hand.first().instanceId)
+
+        assertTrue(result is ActionResult.Failure)
+        assertEquals(0, state.player.board.size)
+    }
+
+    @Test
+    fun `creatures cannot attack before combat is declared`() {
+        val state = fixedState()
+        val attacker = CreatureInstance(instanceId = "a", template = CardDatabase.card("embercub"), summoningSick = false)
+        state.player.board.add(attacker)
+
+        val result = GameEngine.attack(state, Side.PLAYER, attacker.instanceId)
+
+        assertTrue(result is ActionResult.Failure)
+    }
+
+    @Test
+    fun `starting a new turn resets the phase back to main`() {
+        val state = fixedState()
+        GameEngine.declareCombat(state, Side.PLAYER)
+        assertEquals(TurnPhase.COMBAT, state.phase)
+
+        GameEngine.endTurn(state) // player -> ai
+        GameEngine.endTurn(state) // ai -> player
+
+        assertEquals(TurnPhase.MAIN, state.phase)
     }
 
     @Test
@@ -86,6 +122,7 @@ class GameEngineTest {
         val taunt = CreatureInstance(instanceId = "taunt-1", template = CardDatabase.card("shieldwall_recruit"))
         state.ai.board.add(taunt)
 
+        GameEngine.declareCombat(state, Side.PLAYER)
         val faceResult = GameEngine.attack(state, Side.PLAYER, attacker.instanceId, targetInstanceId = null)
         assertTrue(faceResult is ActionResult.Failure)
         assertEquals(MAX_HERO_HEALTH, state.ai.heroHealth)
@@ -102,6 +139,7 @@ class GameEngineTest {
         state.player.board.add(attacker)
         state.ai.board.add(defender)
 
+        GameEngine.declareCombat(state, Side.PLAYER)
         GameEngine.attack(state, Side.PLAYER, attacker.instanceId, defender.instanceId)
 
         assertTrue(state.ai.board.isEmpty()) // defender (1 hp) died to 3 damage
@@ -150,6 +188,7 @@ class GameEngineTest {
         val attacker = CreatureInstance(instanceId = "a", template = CardDatabase.card("embercub"), summoningSick = false)
         state.player.board.add(attacker)
 
+        GameEngine.declareCombat(state, Side.PLAYER)
         GameEngine.attack(state, Side.PLAYER, attacker.instanceId)
 
         assertTrue(state.isGameOver)
@@ -201,6 +240,7 @@ class GameEngineTest {
                 }
             }
         }
+        if (!state.isGameOver) GameEngine.declareCombat(state, Side.PLAYER)
         for (attacker in player.board.filter { it.canAttack }) {
             if (state.isGameOver) break
             GameEngine.attack(state, Side.PLAYER, attacker.instanceId)
