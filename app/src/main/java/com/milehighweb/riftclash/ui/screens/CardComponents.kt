@@ -66,7 +66,32 @@ fun HandCardView(
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 10.dp else 2.dp),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                CardArt(template = template, modifier = Modifier.fillMaxWidth().weight(1f), iconSize = 22.dp)
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    CardArt(template = template, modifier = Modifier.fillMaxSize(), iconSize = 22.dp)
+                    // Stat gems are inset into the art instead of overhanging the card edge,
+                    // so they stay inside the frame even when cards sit close together
+                    // (hand row, board row, collection grid).
+                    Gem(
+                        value = template.cost,
+                        colors = listOf(ManaBlue, ManaBlueDeep),
+                        modifier = Modifier.align(Alignment.TopStart).padding(3.dp),
+                        size = 20.dp,
+                    )
+                    if (template.type == CardType.CREATURE) {
+                        Gem(
+                            value = template.attack,
+                            colors = listOf(EmberOrange, EmberOrangeDeep),
+                            modifier = Modifier.align(Alignment.BottomStart).padding(3.dp),
+                            size = 20.dp,
+                        )
+                        Gem(
+                            value = template.health,
+                            colors = listOf(HealthRed, Color(0xFF8F241D)),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp),
+                            size = 20.dp,
+                        )
+                    }
+                }
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -92,23 +117,6 @@ fun HandCardView(
             }
         }
 
-        Gem(
-            value = template.cost,
-            colors = listOf(ManaBlue, ManaBlueDeep),
-            modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp),
-        )
-        if (template.type == CardType.CREATURE) {
-            Gem(
-                value = template.attack,
-                colors = listOf(EmberOrange, EmberOrangeDeep),
-                modifier = Modifier.align(Alignment.BottomStart).offset(x = (-6).dp, y = 6.dp),
-            )
-            Gem(
-                value = template.health,
-                colors = listOf(HealthRed, Color(0xFF8F241D)),
-                modifier = Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp),
-            )
-        }
         if (!isPlayable) {
             Box(
                 modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = 0.55f)),
@@ -141,7 +149,23 @@ fun BoardCreatureView(
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 1.dp),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                CardArt(template = creature.template, modifier = Modifier.fillMaxWidth().weight(1f), iconSize = 18.dp)
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    CardArt(template = creature.template, modifier = Modifier.fillMaxSize(), iconSize = 18.dp)
+                    // Stat gems are inset into the art instead of overhanging the card edge,
+                    // so they stay inside the frame when creatures sit close together on the board.
+                    Gem(
+                        value = creature.currentAttack,
+                        colors = listOf(EmberOrange, EmberOrangeDeep),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(3.dp),
+                        size = 22.dp,
+                    )
+                    Gem(
+                        value = creature.currentHealth,
+                        colors = listOf(HealthRed, Color(0xFF8F241D)),
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp),
+                        size = 22.dp,
+                    )
+                }
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 1.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -174,7 +198,7 @@ fun BoardCreatureView(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = 4.dp)
+                    .padding(3.dp)
                     .clip(CircleShape)
                     .background(RiftPurpleLight)
                     .padding(3.dp),
@@ -182,19 +206,6 @@ fun BoardCreatureView(
                 Icon(Icons.Filled.Bedtime, contentDescription = "Resting", tint = ParchmentWhite.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
             }
         }
-
-        Gem(
-            value = creature.currentAttack,
-            colors = listOf(EmberOrange, EmberOrangeDeep),
-            modifier = Modifier.align(Alignment.BottomStart).offset(x = (-4).dp, y = 4.dp),
-            size = 24.dp,
-        )
-        Gem(
-            value = creature.currentHealth,
-            colors = listOf(HealthRed, Color(0xFF8F241D)),
-            modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
-            size = 24.dp,
-        )
     }
 }
 
