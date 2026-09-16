@@ -1,5 +1,6 @@
 package com.milehighweb.riftclash
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
 
 /** A short pause after the AI's turn so the player can follow what it did before control returns. */
 private const val AI_TURN_DELAY_MS = 600L
+private const val TAG = "GameViewModel"
 
 class GameViewModel : ViewModel() {
 
@@ -134,9 +136,27 @@ class GameViewModel : ViewModel() {
         if (game.isGameOver || game.activeSide != Side.AI) return
         viewModelScope.launch {
             delay(AI_TURN_DELAY_MS)
-            AiController.takeTurn(game)
+            val logSizeBeforeAiTurn = game.log.size
+            try {
+                AiController.takeTurn(game)
+            } catch (e: Exception) {
+                // Whatever went wrong, don't strand the match on the AI's turn forever --
+                // hand control back to the player so the game stays playable.
+                Log.e(TAG, "AI turn threw; ending it defensively", e)
+                if (game.activeSide == Side.AI) GameEngine.endTurn(game)
+            }
+            statusMessage = summarizeAiTurn(logSizeBeforeAiTurn)
             bump()
         }
+    }
+
+    /** Turns the AI's own engine log lines from the turn just played into a short recap,
+     *  so it's visible when the AI genuinely had nothing to play rather than looking stuck. */
+    private fun summarizeAiTurn(logSizeBeforeAiTurn: Int): String {
+        val events = game.log.drop(logSizeBeforeAiTurn).filterNot { it.contains("begins turn") }
+        if (events.isEmpty()) return "Opponent had nothing to play."
+        val recap = events.joinToString(" ").replace(Regex("\\bAI\\b"), "Opponent")
+        return recap
     }
 
     private fun applyResult(result: ActionResult) {
