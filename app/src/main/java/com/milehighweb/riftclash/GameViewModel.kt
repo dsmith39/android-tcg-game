@@ -68,7 +68,7 @@ class GameViewModel : ViewModel() {
         if (handCardId != null) {
             val card = game.player.hand.find { it.instanceId == handCardId }
             if (card != null && card.template.type == CardType.SPELL) {
-                applyResult(GameEngine.playCard(game, Side.PLAYER, handCardId, creatureInstanceId))
+                applyResult { GameEngine.playCard(game, Side.PLAYER, handCardId, creatureInstanceId) }
                 selectedHandCardId = null
                 return
             }
@@ -82,7 +82,7 @@ class GameViewModel : ViewModel() {
                 statusMessage = "Select one of your creatures first."
                 return
             }
-            applyResult(GameEngine.attack(game, Side.PLAYER, attackerId, creatureInstanceId))
+            applyResult { GameEngine.attack(game, Side.PLAYER, attackerId, creatureInstanceId) }
             selectedAttackerId = null
         }
     }
@@ -99,7 +99,7 @@ class GameViewModel : ViewModel() {
             statusMessage = "Select an attacker or a card first."
             return
         }
-        applyResult(GameEngine.attack(game, Side.PLAYER, attackerId, null))
+        applyResult { GameEngine.attack(game, Side.PLAYER, attackerId, null) }
         selectedAttackerId = null
     }
 
@@ -107,7 +107,7 @@ class GameViewModel : ViewModel() {
      *  enemy hero, all enemies, or nothing (self-heal, draw) all resolve this way. */
     fun playSelectedCard() {
         val handCardId = selectedHandCardId ?: return
-        applyResult(GameEngine.playCard(game, Side.PLAYER, handCardId, null))
+        applyResult { GameEngine.playCard(game, Side.PLAYER, handCardId, null) }
         selectedHandCardId = null
     }
 
@@ -159,7 +159,15 @@ class GameViewModel : ViewModel() {
         return recap
     }
 
-    private fun applyResult(result: ActionResult) {
+    /** Runs a player action defensively: whatever goes wrong inside the engine, surface it
+     *  as a status message instead of crashing the whole app on a bad card/target combo. */
+    private fun applyResult(action: () -> ActionResult) {
+        val result = try {
+            action()
+        } catch (e: Exception) {
+            Log.e(TAG, "Player action threw", e)
+            ActionResult.Failure("Something went wrong playing that card.")
+        }
         statusMessage = (result as? ActionResult.Failure)?.reason
         bump()
     }
