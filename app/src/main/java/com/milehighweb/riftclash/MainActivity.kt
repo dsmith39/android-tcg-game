@@ -9,9 +9,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.milehighweb.riftclash.ui.screens.CollectionScreen
 import com.milehighweb.riftclash.ui.screens.GameScreen
 import com.milehighweb.riftclash.ui.screens.MainMenuScreen
+import com.milehighweb.riftclash.ui.screens.RulesScreen
 import com.milehighweb.riftclash.ui.theme.RiftClashTheme
+
+private enum class Screen { MENU, GAME, RULES, COLLECTION }
 
 class MainActivity : ComponentActivity() {
 
@@ -21,22 +25,25 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             RiftClashTheme {
-                var showGame by remember { mutableStateOf(false) }
+                var screen by remember { mutableStateOf(Screen.MENU) }
                 val snapshot by viewModel.snapshot.collectAsState()
 
-                if (showGame) {
-                    GameScreen(
-                        viewModel = viewModel,
-                        snapshot = snapshot,
-                        onExitToMenu = { showGame = false },
-                    )
-                } else {
-                    MainMenuScreen(
+                when (screen) {
+                    Screen.MENU -> MainMenuScreen(
                         onStartGame = {
                             viewModel.startNewGame()
-                            showGame = true
+                            screen = Screen.GAME
                         },
+                        onShowRules = { screen = Screen.RULES },
+                        onShowCollection = { screen = Screen.COLLECTION },
                     )
+                    Screen.GAME -> GameScreen(
+                        viewModel = viewModel,
+                        snapshot = snapshot,
+                        onExitToMenu = { screen = Screen.MENU },
+                    )
+                    Screen.RULES -> RulesScreen(onBack = { screen = Screen.MENU })
+                    Screen.COLLECTION -> CollectionScreen(onBack = { screen = Screen.MENU })
                 }
             }
         }

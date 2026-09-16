@@ -2,26 +2,30 @@ package com.milehighweb.riftclash.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,10 +34,17 @@ import androidx.compose.ui.unit.sp
 import com.milehighweb.riftclash.game.CardInstance
 import com.milehighweb.riftclash.game.CardType
 import com.milehighweb.riftclash.game.CreatureInstance
+import com.milehighweb.riftclash.ui.components.CardArt
+import com.milehighweb.riftclash.ui.theme.CardTitleStyle
 import com.milehighweb.riftclash.ui.theme.EmberOrange
+import com.milehighweb.riftclash.ui.theme.EmberOrangeDeep
 import com.milehighweb.riftclash.ui.theme.HealthRed
 import com.milehighweb.riftclash.ui.theme.ManaBlue
+import com.milehighweb.riftclash.ui.theme.ManaBlueDeep
+import com.milehighweb.riftclash.ui.theme.ParchmentWhite
 import com.milehighweb.riftclash.ui.theme.RiftPurpleLight
+import com.milehighweb.riftclash.ui.theme.SpellVioletDeep
+import com.milehighweb.riftclash.ui.theme.TauntGold
 
 @Composable
 fun HandCardView(
@@ -43,50 +54,64 @@ fun HandCardView(
     onClick: () -> Unit,
 ) {
     val template = card.template
-    Card(
-        modifier = Modifier
-            .width(108.dp)
-            .height(148.dp)
-            .clickable(enabled = isPlayable) { onClick() },
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isPlayable) RiftPurpleLight else Color(0xFF3A3350)),
-        border = if (isSelected) BorderStroke(2.dp, EmberOrange) else null,
-    ) {
-        Column(
-            modifier = Modifier.padding(6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    val frameColor = if (template.type == CardType.CREATURE) EmberOrangeDeep else SpellVioletDeep
+
+    Box(modifier = Modifier.width(112.dp).height(162.dp)) {
+        Card(
+            modifier = Modifier.fillMaxSize().clickable(enabled = isPlayable) { onClick() },
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = RiftPurpleLight),
+            border = BorderStroke(if (isSelected) 3.dp else 2.dp, if (isSelected) EmberOrange else frameColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 10.dp else 2.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                ManaCrystal(template.cost)
-            }
-            Text(
-                text = template.name,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
-            Text(
-                text = template.description,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                fontSize = 9.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 4,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-            if (template.type == CardType.CREATURE) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            Column(modifier = Modifier.fillMaxSize()) {
+                CardArt(template = template, modifier = Modifier.fillMaxWidth().height(56.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    StatPill(value = template.attack, color = EmberOrange)
-                    StatPill(value = template.health, color = HealthRed)
+                    Text(
+                        text = template.name,
+                        style = CardTitleStyle,
+                        color = ParchmentWhite,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = template.description,
+                        fontSize = 9.sp,
+                        lineHeight = 11.sp,
+                        color = ParchmentWhite.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center,
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    )
                 }
             }
+        }
+
+        Gem(
+            value = template.cost,
+            colors = listOf(ManaBlue, ManaBlueDeep),
+            modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp),
+        )
+        if (template.type == CardType.CREATURE) {
+            Gem(
+                value = template.attack,
+                colors = listOf(EmberOrange, EmberOrangeDeep),
+                modifier = Modifier.align(Alignment.BottomStart).offset(x = (-6).dp, y = 6.dp),
+            )
+            Gem(
+                value = template.health,
+                colors = listOf(HealthRed, Color(0xFF8F241D)),
+                modifier = Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp),
+            )
+        }
+        if (!isPlayable) {
+            Box(
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = 0.55f)),
+            )
         }
     }
 }
@@ -98,66 +123,94 @@ fun BoardCreatureView(
     isSelectableAttacker: Boolean,
     onClick: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .width(84.dp)
-            .height(108.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelectableAttacker) RiftPurpleLight else Color(0xFF3A3350),
-        ),
-        border = when {
-            isSelected -> BorderStroke(2.dp, EmberOrange)
-            creature.isTaunt -> BorderStroke(2.dp, ManaBlue)
-            else -> null
-        },
-    ) {
-        Column(
-            modifier = Modifier.padding(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    val borderColor = when {
+        isSelected -> EmberOrange
+        creature.isTaunt -> TauntGold
+        isSelectableAttacker -> EmberOrangeDeep
+        else -> RiftPurpleLight
+    }
+
+    Box(modifier = Modifier.width(92.dp).height(122.dp)) {
+        Card(
+            modifier = Modifier.fillMaxSize().clickable { onClick() },
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = RiftPurpleLight),
+            border = BorderStroke(if (isSelected) 3.dp else 2.dp, borderColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 1.dp),
         ) {
-            Text(
-                text = creature.template.name,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
-            if (creature.isTaunt) {
-                Text(text = "TAUNT", color = ManaBlue, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
-            if (creature.summoningSick) {
-                Text(text = "resting", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), fontSize = 8.sp)
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                StatPill(value = creature.currentAttack, color = EmberOrange)
-                StatPill(value = creature.currentHealth, color = HealthRed)
+            Column(modifier = Modifier.fillMaxSize()) {
+                CardArt(template = creature.template, modifier = Modifier.fillMaxWidth().height(48.dp), iconSize = 22.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = creature.template.name,
+                        style = CardTitleStyle.copy(fontSize = 10.sp),
+                        color = ParchmentWhite,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
+
+        if (creature.isTaunt) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 44.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(TauntGold)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            ) {
+                Text(text = "TAUNT", color = Color(0xFF3A2A00), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (creature.summoningSick) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = 4.dp)
+                    .clip(CircleShape)
+                    .background(RiftPurpleLight)
+                    .padding(3.dp),
+            ) {
+                Icon(Icons.Filled.Bedtime, contentDescription = "Resting", tint = ParchmentWhite.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
+            }
+        }
+
+        Gem(
+            value = creature.currentAttack,
+            colors = listOf(EmberOrange, EmberOrangeDeep),
+            modifier = Modifier.align(Alignment.BottomStart).offset(x = (-4).dp, y = 4.dp),
+            size = 24.dp,
+        )
+        Gem(
+            value = creature.currentHealth,
+            colors = listOf(HealthRed, Color(0xFF8F241D)),
+            modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
+            size = 24.dp,
+        )
     }
 }
 
 @Composable
-fun ManaCrystal(amount: Int) {
+fun Gem(
+    value: Int,
+    colors: List<Color>,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 26.dp,
+) {
     Box(
-        modifier = Modifier.size(22.dp).clip(CircleShape).background(ManaBlue),
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Brush.radialGradient(colors))
+            .border(width = 1.5.dp, color = ParchmentWhite.copy(alpha = 0.6f), shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = amount.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun StatPill(value: Int, color: Color) {
-    Box(
-        modifier = Modifier.size(20.dp).clip(CircleShape).background(color),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = value.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(text = value.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
