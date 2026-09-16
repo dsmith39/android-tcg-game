@@ -52,11 +52,12 @@ fun HandCardView(
     isSelected: Boolean,
     isPlayable: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier.width(112.dp).height(162.dp),
 ) {
     val template = card.template
     val frameColor = if (template.type == CardType.CREATURE) EmberOrangeDeep else SpellVioletDeep
 
-    Box(modifier = Modifier.width(112.dp).height(162.dp)) {
+    Box(modifier = modifier) {
         Card(
             modifier = Modifier.fillMaxSize().clickable(enabled = isPlayable) { onClick() },
             shape = RoundedCornerShape(14.dp),
@@ -65,27 +66,27 @@ fun HandCardView(
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 10.dp else 2.dp),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                CardArt(template = template, modifier = Modifier.fillMaxWidth().height(56.dp))
+                CardArt(template = template, modifier = Modifier.fillMaxWidth().weight(1f), iconSize = 22.dp)
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = template.name,
-                        style = CardTitleStyle,
+                        style = CardTitleStyle.copy(fontSize = 10.sp),
                         color = ParchmentWhite,
                         textAlign = TextAlign.Center,
-                        maxLines = 2,
+                        maxLines = 1,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
                         text = template.description,
-                        fontSize = 9.sp,
-                        lineHeight = 11.sp,
+                        fontSize = 8.sp,
+                        lineHeight = 9.5.sp,
                         color = ParchmentWhite.copy(alpha = 0.75f),
                         textAlign = TextAlign.Center,
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
                     )
                 }
             }
@@ -122,6 +123,7 @@ fun BoardCreatureView(
     isSelected: Boolean,
     isSelectableAttacker: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier.width(92.dp).height(122.dp),
 ) {
     val borderColor = when {
         isSelected -> EmberOrange
@@ -130,7 +132,7 @@ fun BoardCreatureView(
         else -> RiftPurpleLight
     }
 
-    Box(modifier = Modifier.width(92.dp).height(122.dp)) {
+    Box(modifier = modifier) {
         Card(
             modifier = Modifier.fillMaxSize().clickable { onClick() },
             shape = RoundedCornerShape(12.dp),
@@ -139,17 +141,17 @@ fun BoardCreatureView(
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 1.dp),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                CardArt(template = creature.template, modifier = Modifier.fillMaxWidth().height(48.dp), iconSize = 22.dp)
+                CardArt(template = creature.template, modifier = Modifier.fillMaxWidth().weight(1f), iconSize = 18.dp)
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 1.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = creature.template.name,
-                        style = CardTitleStyle.copy(fontSize = 10.sp),
+                        style = CardTitleStyle.copy(fontSize = 9.sp),
                         color = ParchmentWhite,
                         textAlign = TextAlign.Center,
-                        maxLines = 2,
+                        maxLines = 1,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -160,7 +162,7 @@ fun BoardCreatureView(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = 44.dp)
+                    .offset(y = 2.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(TauntGold)
                     .padding(horizontal = 4.dp, vertical = 1.dp),
