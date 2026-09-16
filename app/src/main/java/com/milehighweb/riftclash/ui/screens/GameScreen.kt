@@ -171,7 +171,7 @@ private fun HeroPanel(
             Icon(icon, contentDescription = label, tint = EmberOrange, modifier = Modifier.size(14.dp))
         }
         Spacer(modifier = Modifier.width(4.dp))
-        Gem(value = state.heroHealth, colors = listOf(HealthRed, Color(0xFF8F241D)), size = 20.dp)
+        Gem(value = state.heroHealth, colors = listOf(HealthRed, Color(0xFF8F241D)), size = 22.dp)
         Spacer(modifier = Modifier.width(4.dp))
         ManaPip(current = state.currentMana, max = state.maxMana)
     }

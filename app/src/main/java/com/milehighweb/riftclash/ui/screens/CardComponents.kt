@@ -205,6 +205,9 @@ fun Gem(
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 26.dp,
 ) {
+    // Hero health starts at 30, so this box needs to hold two digits from turn one --
+    // a fixed font size wrapped or clipped "30" onto two lines inside the small gems.
+    val fontSize = if (value >= 10) 10.sp else 12.sp
     Box(
         modifier = modifier
             .size(size)
@@ -213,6 +216,13 @@ fun Gem(
             .border(width = 1.5.dp, color = ParchmentWhite.copy(alpha = 0.6f), shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = value.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = value.toString(),
+            color = Color.White,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }

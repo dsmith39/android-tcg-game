@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
@@ -38,18 +40,22 @@ fun MainMenuScreen(
     onShowRules: () -> Unit,
     onShowCollection: () -> Unit,
 ) {
+    // A fixed, centered Column with no scroll fallback used to clip its top and bottom
+    // on shorter landscape phones (this app is locked to landscape) once the title,
+    // subtitle, and three buttons together exceeded the available height.
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(menuBackgroundBrush())
-            .padding(32.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 32.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = "RIFT CLASH",
             color = EmberOrange,
-            fontSize = 46.sp,
+            fontSize = 40.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 4.sp,
             style = MaterialTheme.typography.headlineLarge,
@@ -58,14 +64,14 @@ fun MainMenuScreen(
         Row(
             modifier = Modifier.width(180.dp).height(2.dp).background(EmberOrange.copy(alpha = 0.6f)),
         ) {}
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "Summon creatures, cast spells, and burn your\nopponent's hero down to zero.",
             color = ParchmentWhite.copy(alpha = 0.8f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
         )
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = onStartGame,
@@ -76,7 +82,7 @@ fun MainMenuScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "New Game vs. AI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         OutlinedButton(
             onClick = onShowCollection,
             modifier = Modifier.width(240.dp),
@@ -86,7 +92,7 @@ fun MainMenuScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "Card Collection", fontSize = 15.sp)
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(
             onClick = onShowRules,
             modifier = Modifier.width(240.dp),
