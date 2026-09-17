@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test
 class GameEngineTest {
 
     @Test
-    fun `card database has exactly one starter deck of thirty cards`() {
+    fun `card database has exactly one starter deck of forty-five cards`() {
         val deck = CardDatabase.defaultDeck()
-        assertEquals(30, deck.size)
+        assertEquals(45, deck.size)
     }
 
     @Test
@@ -145,6 +145,64 @@ class GameEngineTest {
         assertTrue(state.ai.board.isEmpty()) // defender (1 hp) died to 3 damage
         assertEquals(1, state.player.board.size) // attacker (2 hp) survived 1 damage
         assertEquals(1, state.player.board.first().currentHealth)
+    }
+
+    @Test
+    fun `divine shield absorbs the first hit of damage and is then removed`() {
+        val state = fixedState()
+        val attacker = CreatureInstance(instanceId = "a", template = CardDatabase.card("embercub"), summoningSick = false) // 3/2
+        val defender = CreatureInstance(instanceId = "d", template = CardDatabase.card("aegis_sentinel")) // 1/4, Divine Shield
+        state.player.board.add(attacker)
+        state.ai.board.add(defender)
+
+        GameEngine.declareCombat(state, Side.PLAYER)
+        GameEngine.attack(state, Side.PLAYER, attacker.instanceId, defender.instanceId)
+
+        assertEquals(4, defender.currentHealth) // shield absorbed the 3 damage entirely
+        assertFalse(defender.keywords.contains(Keyword.DIVINE_SHIELD)) // and was consumed
+        assertEquals(2 - 1, attacker.currentHealth) // attacker still takes the defender's 1 damage back
+    }
+
+    @Test
+    fun `poisonous creature kills whatever it damages in combat regardless of health`() {
+        val state = fixedState()
+        val attacker = CreatureInstance(instanceId = "a", template = CardDatabase.card("barbed_viper"), summoningSick = false) // 2/1, Poisonous
+        val defender = CreatureInstance(instanceId = "d", template = CardDatabase.card("ironclad_guardian")) // 3/7, Taunt
+        state.player.board.add(attacker)
+        state.ai.board.add(defender)
+
+        GameEngine.declareCombat(state, Side.PLAYER)
+        GameEngine.attack(state, Side.PLAYER, attacker.instanceId, defender.instanceId)
+
+        assertTrue(state.ai.board.isEmpty()) // died to poison, not its 7 health worth of damage
+    }
+
+    @Test
+    fun `lifesteal heals the attacker's hero for damage dealt to the enemy hero`() {
+        val state = fixedState()
+        state.player.heroHealth = 20
+        val attacker = CreatureInstance(instanceId = "a", template = CardDatabase.card("leech_imp"), summoningSick = false) // 1/2, Lifesteal
+        state.player.board.add(attacker)
+
+        GameEngine.declareCombat(state, Side.PLAYER)
+        GameEngine.attack(state, Side.PLAYER, attacker.instanceId)
+
+        assertEquals(MAX_HERO_HEALTH - 1, state.ai.heroHealth)
+        assertEquals(21, state.player.heroHealth)
+    }
+
+    @Test
+    fun `silence strips all keywords from the target creature`() {
+        val state = fixedState(playerHand = listOf("silence"))
+        state.player.currentMana = 1
+        val taunted = CreatureInstance(instanceId = "t", template = CardDatabase.card("stone_golem"))
+        state.ai.board.add(taunted)
+
+        val result = GameEngine.playCard(state, Side.PLAYER, state.player.hand.first().instanceId, taunted.instanceId)
+
+        assertTrue(result is ActionResult.Success)
+        assertTrue(taunted.keywords.isEmpty())
+        assertFalse(taunted.isTaunt)
     }
 
     @Test

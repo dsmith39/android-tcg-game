@@ -132,12 +132,13 @@ object GameEngine {
             defenderOwner.heroHealth -= attacker.currentAttack
             attacker.hasAttackedThisTurn = true
             state.addLog("$side's ${attacker.template.name} attacks the enemy hero for ${attacker.currentAttack}.")
+            if (attacker.hasLifesteal) healHero(attackerOwner, attacker.currentAttack)
         } else {
             val target = defenderOwner.board.find { it.instanceId == targetInstanceId }
                 ?: return ActionResult.Failure("Target not found.")
             if (tauntCreatures.isNotEmpty() && !target.isTaunt) return ActionResult.Failure("Must attack a Taunt creature first.")
-            target.currentHealth -= attacker.currentAttack
-            attacker.currentHealth -= target.currentAttack
+            damageCreature(state, target, attacker.currentAttack, source = attacker, sourceOwner = attackerOwner)
+            damageCreature(state, attacker, target.currentAttack, source = target, sourceOwner = defenderOwner)
             attacker.hasAttackedThisTurn = true
             state.addLog("$side's ${attacker.template.name} trades blows with ${target.template.name}.")
         }
@@ -187,17 +188,54 @@ object GameEngine {
         when (effect) {
             is SpellEffect.DealDamage -> when (effect.target) {
                 TargetType.ENEMY_HERO -> opponent.heroHealth -= effect.amount
-                TargetType.ALL_ENEMY_CREATURES -> opponent.board.forEach { it.currentHealth -= effect.amount }
-                else -> target?.let { it.currentHealth -= effect.amount }
+                TargetType.ALL_ENEMY_CREATURES -> opponent.board.forEach { damageCreature(state, it, effect.amount) }
+                else -> target?.let { damageCreature(state, it, effect.amount) }
             }
-            is SpellEffect.Heal -> caster.heroHealth = minOf(MAX_HERO_HEALTH, caster.heroHealth + effect.amount)
+            is SpellEffect.Heal -> if (effect.target == TargetType.FRIENDLY_CREATURE) {
+                target?.let { it.currentHealth = minOf(it.maxHealth, it.currentHealth + effect.amount) }
+            } else {
+                healHero(caster, effect.amount)
+            }
             is SpellEffect.Buff -> target?.let {
                 it.currentAttack += effect.attack
                 it.currentHealth += effect.health
             }
             is SpellEffect.DrawCards -> repeat(effect.amount) { drawCard(state, casterSide) }
+            is SpellEffect.Silence -> target?.let {
+                it.keywords.clear()
+                state.addLog("${it.template.name} is silenced.")
+            }
         }
         removeDeadCreatures(state)
+    }
+
+    private fun healHero(owner: PlayerState, amount: Int) {
+        owner.heroHealth = minOf(MAX_HERO_HEALTH, owner.heroHealth + amount)
+    }
+
+    /**
+     * Applies [amount] damage to [target], respecting Divine Shield (which absorbs the whole
+     * hit and is then removed). When [source] is a creature that dealt the damage, its
+     * Poisonous and Lifesteal keywords also trigger. Returns the damage actually applied.
+     */
+    private fun damageCreature(
+        state: GameState,
+        target: CreatureInstance,
+        amount: Int,
+        source: CreatureInstance? = null,
+        sourceOwner: PlayerState? = null,
+    ): Int {
+        if (target.hasDivineShield) {
+            target.keywords.remove(Keyword.DIVINE_SHIELD)
+            state.addLog("${target.template.name}'s Divine Shield absorbs the hit.")
+            return 0
+        }
+        target.currentHealth -= amount
+        if (source != null && amount > 0) {
+            if (source.isPoisonous) target.currentHealth = 0
+            if (source.hasLifesteal && sourceOwner != null) healHero(sourceOwner, amount)
+        }
+        return amount
     }
 
     private fun removeDeadCreatures(state: GameState) {

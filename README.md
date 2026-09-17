@@ -14,7 +14,7 @@ built with Kotlin and Jetpack Compose.
 
 ## How to play
 
-- Both players start with a hero at 30 health and a 30-card starter deck (there's
+- Both players start with a hero at 30 health and a 45-card starter deck (there's
   no deck builder yet -- everyone plays the same pool of cards).
 - Mana starts at 1 and grows by 1 every turn, up to 10; it fully refills each turn.
 - Play creatures (attack/health) and spells from your hand by spending mana.
@@ -22,6 +22,10 @@ built with Kotlin and Jetpack Compose.
   unless they have **Charge**.
 - **Taunt** creatures must be attacked before anything else on that side of the
   board.
+- **Divine Shield** absorbs the next instance of damage a creature would take,
+  then is used up. **Poisonous** creatures instantly kill anything they damage
+  in combat. **Lifesteal** heals its controller's hero for the damage it deals.
+  **Silence** strips all keywords from a creature.
 - Reduce the enemy hero to 0 health to win. Running out of cards in your deck
   deals escalating fatigue damage instead of drawing.
 
@@ -44,6 +48,6 @@ at your SDK (`sdk.dir=/path/to/Android/sdk`), then:
 
 ## What's next
 
-Ideas for expanding this: a deck builder / card collection, more keywords
-(Lifesteal, Poison, Silence), a smarter AI (lookahead instead of pure heuristics),
-sound/animation polish, and a match history or campaign mode.
+Ideas for expanding this: a deck builder / card collection, a smarter AI
+(lookahead instead of pure heuristics), sound/animation polish, and a match
+history or campaign mode.

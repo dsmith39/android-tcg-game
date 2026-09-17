@@ -6,12 +6,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.GppGood
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -37,7 +41,10 @@ private data class ArtSpec(val icon: ImageVector, val topColor: Color, val botto
 
 private fun artSpecFor(template: CardTemplate): ArtSpec = when (template.type) {
     CardType.CREATURE -> when {
+        Keyword.DIVINE_SHIELD in template.keywords -> ArtSpec(Icons.Filled.GppGood, TauntGold, EmberOrangeDeep)
         Keyword.TAUNT in template.keywords -> ArtSpec(Icons.Filled.Shield, TauntGold, EmberOrangeDeep)
+        Keyword.POISONOUS in template.keywords -> ArtSpec(Icons.Filled.Science, EmberOrange, EmberOrangeDeep)
+        Keyword.LIFESTEAL in template.keywords -> ArtSpec(Icons.Filled.Bloodtype, EmberOrange, EmberOrangeDeep)
         Keyword.CHARGE in template.keywords -> ArtSpec(Icons.Filled.Bolt, EmberOrange, EmberOrangeDeep)
         else -> ArtSpec(Icons.Filled.Pets, EmberOrange, EmberOrangeDeep)
     }
@@ -46,6 +53,7 @@ private fun artSpecFor(template: CardTemplate): ArtSpec = when (template.type) {
         is SpellEffect.Heal -> ArtSpec(Icons.Filled.Favorite, SpellViolet, SpellVioletDeep)
         is SpellEffect.Buff -> ArtSpec(Icons.Filled.TrendingUp, SpellViolet, SpellVioletDeep)
         is SpellEffect.DrawCards -> ArtSpec(Icons.Filled.Style, SpellViolet, SpellVioletDeep)
+        is SpellEffect.Silence -> ArtSpec(Icons.Filled.VolumeOff, SpellViolet, SpellVioletDeep)
         null -> ArtSpec(Icons.Filled.AutoAwesome, SpellViolet, SpellVioletDeep)
     }
 }

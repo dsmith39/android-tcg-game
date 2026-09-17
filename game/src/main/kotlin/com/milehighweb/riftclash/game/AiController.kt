@@ -47,12 +47,20 @@ object AiController {
 
     private fun pickSpellTarget(state: GameState, template: CardTemplate): String? {
         val effect = template.spellEffect ?: return null
-        return when (effect.target) {
-            TargetType.ENEMY_CREATURE ->
+        return when {
+            effect is SpellEffect.Silence ->
+                // Only worth casting on a creature that actually has something to strip.
+                state.player.board.filter { it.isAlive && it.keywords.isNotEmpty() }
+                    .maxByOrNull { it.currentAttack + it.currentHealth }?.instanceId
+            effect is SpellEffect.Heal && effect.target == TargetType.FRIENDLY_CREATURE ->
+                // Only worth casting on a creature that's actually missing health.
+                state.ai.board.filter { it.isAlive && it.currentHealth < it.maxHealth }
+                    .minByOrNull { it.currentHealth }?.instanceId
+            effect.target == TargetType.ENEMY_CREATURE ->
                 state.player.board.filter { it.isAlive }.minByOrNull { it.currentHealth }?.instanceId
-            TargetType.FRIENDLY_CREATURE ->
+            effect.target == TargetType.FRIENDLY_CREATURE ->
                 state.ai.board.filter { it.isAlive }.maxByOrNull { it.currentAttack }?.instanceId
-            TargetType.ANY_CREATURE ->
+            effect.target == TargetType.ANY_CREATURE ->
                 (state.player.board + state.ai.board).filter { it.isAlive }.minByOrNull { it.currentHealth }?.instanceId
             else -> null
         }
@@ -80,7 +88,9 @@ object AiController {
 
         return opponent.board
             .filter { it.isAlive }
-            .filter { attacker.currentAttack >= it.currentHealth && it.currentAttack < attacker.currentHealth }
+            // A Divine Shield absorbs the whole hit instead of taking damage, so this attack
+            // wouldn't actually kill it -- don't mistake it for a safe, lethal trade.
+            .filter { !it.hasDivineShield && attacker.currentAttack >= it.currentHealth && it.currentAttack < attacker.currentHealth }
             .maxByOrNull { it.currentAttack } // trade up into the biggest threat we can kill safely
     }
 }

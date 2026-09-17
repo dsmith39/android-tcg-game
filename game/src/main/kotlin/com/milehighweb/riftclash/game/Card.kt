@@ -11,6 +11,15 @@ enum class Keyword {
 
     /** Can attack the same turn it is played, ignoring summoning sickness. */
     CHARGE,
+
+    /** Whenever this creature deals damage, its controller's hero is healed for that much. */
+    LIFESTEAL,
+
+    /** Any creature it damages in combat dies, regardless of remaining health. */
+    POISONOUS,
+
+    /** Absorbs the next instance of damage entirely, then is removed. */
+    DIVINE_SHIELD,
 }
 
 enum class TargetType {
@@ -34,6 +43,9 @@ sealed class SpellEffect {
     data class DrawCards(val amount: Int) : SpellEffect() {
         override val target: TargetType = TargetType.NONE
     }
+
+    /** Strips all keywords from a creature, removing Taunt, Divine Shield, Poisonous, etc. */
+    data class Silence(override val target: TargetType) : SpellEffect()
 }
 
 /**

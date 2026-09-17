@@ -20,7 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.GppGood
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,6 +69,9 @@ data class InspectedCard(
     val currentAttack: Int? = null,
     val currentHealth: Int? = null,
     val maxHealth: Int? = null,
+    // Defaults to the template's keywords, but a board creature that has been Silenced
+    // carries its own, now-empty set instead.
+    val keywords: Set<Keyword> = template.keywords,
 ) {
     companion object {
         fun fromCard(card: CardInstance) = InspectedCard(template = card.template)
@@ -74,6 +80,7 @@ data class InspectedCard(
             currentAttack = creature.currentAttack,
             currentHealth = creature.currentHealth,
             maxHealth = creature.maxHealth,
+            keywords = creature.keywords,
         )
     }
 }
@@ -223,16 +230,15 @@ fun BoardCreatureView(
             }
         }
 
-        if (creature.isTaunt) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = 2.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(TauntGold)
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
+        // Charge only matters before a creature's first attack, which the "resting" icon
+        // below already communicates, so it doesn't get its own badge here.
+        val badgeKeywords = creature.keywords.filter { it != Keyword.CHARGE }
+        if (badgeKeywords.isNotEmpty()) {
+            Row(
+                modifier = Modifier.align(Alignment.TopCenter).offset(y = 2.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp),
             ) {
-                Text(text = "TAUNT", color = Color(0xFF3A2A00), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                badgeKeywords.forEach { keyword -> KeywordBadge(keyword) }
             }
         }
         if (creature.summoningSick) {
@@ -247,6 +253,23 @@ fun BoardCreatureView(
                 Icon(Icons.Filled.Bedtime, contentDescription = "Resting", tint = ParchmentWhite.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
             }
         }
+    }
+}
+
+/** A compact badge for a board creature's active keywords, small enough to stack a few side by side. */
+@Composable
+private fun KeywordBadge(keyword: Keyword) {
+    val (label, color) = when (keyword) {
+        Keyword.TAUNT -> "TAUNT" to TauntGold
+        Keyword.DIVINE_SHIELD -> "SHIELD" to ManaBlue
+        Keyword.POISONOUS -> "POISON" to Color(0xFF3FA34D)
+        Keyword.LIFESTEAL -> "LEECH" to HealthRed
+        Keyword.CHARGE -> "CHARGE" to EmberOrange
+    }
+    Box(
+        modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(color).padding(horizontal = 3.dp, vertical = 1.dp),
+    ) {
+        Text(text = label, color = Color(0xFF1A1A1A), fontSize = 6.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -337,13 +360,13 @@ fun CardDetailDialog(card: InspectedCard, onDismiss: () -> Unit) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (template.keywords.isNotEmpty()) {
+                if (card.keywords.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
                     ) {
-                        template.keywords.forEach { keyword -> KeywordChip(keyword) }
+                        card.keywords.forEach { keyword -> KeywordChip(keyword) }
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -373,6 +396,9 @@ private fun KeywordChip(keyword: Keyword) {
     val (label, icon) = when (keyword) {
         Keyword.TAUNT -> "Taunt" to Icons.Filled.Shield
         Keyword.CHARGE -> "Charge" to Icons.Filled.Bolt
+        Keyword.LIFESTEAL -> "Lifesteal" to Icons.Filled.Bloodtype
+        Keyword.POISONOUS -> "Poisonous" to Icons.Filled.Science
+        Keyword.DIVINE_SHIELD -> "Divine Shield" to Icons.Filled.GppGood
     }
     Row(
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(TauntGold.copy(alpha = 0.25f)).padding(horizontal = 8.dp, vertical = 3.dp),
